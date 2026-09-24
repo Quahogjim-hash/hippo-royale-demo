@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1a2e">
+<title>Hippo Royale</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { background: #0f0f1a; overflow: hidden; touch-action: none; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 100vw; height: 100vh; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  canvas { display: block; }
+  #ui { position: absolute; top: env(safe-area-inset-top); left: env(safe-area-inset-left); right: env(safe-area-inset-right); bottom: env(safe-area-inset-bottom); pointer-events: none; }
+  .screen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; transition: opacity 0.4s; }
+  .screen.hidden { opacity: 0; pointer-events: none; }
+  #lobby { background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); padding: 20px; }
+  .lobby-emoji { font-size: 72px; margin-bottom: 8px; animation: bounce 2s infinite; }
+  .lobby-title { font-size: 32px; font-weight: 900; letter-spacing: 2px; background: linear-gradient(90deg, #ff6b9d, #ff8c42); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .lobby-sub { color: #888; font-size: 14px; margin-top: 4px; }
+  .balance-pill { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.08); padding: 12px 24px; border-radius: 16px; margin: 20px 0; }
+  .balance-pill span { font-size: 24px; }
+  .balance-pill .amt { font-size: 24px; font-weight: 800; color: #ffd700; }
+  .section-label { align-self: flex-start; font-size: 11px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px 4px; }
+  .stakes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 320px; }
+  .stake-btn { padding: 16px; border-radius: 12px; text-align: center; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s; color: white; }
+  .stake-btn.active { background: #ffd700; border-color: #ffd700; color: #1a1a2e; }
+  .stake-btn .s-amt { font-size: 22px; font-weight: 800; }
+  .stake-btn .s-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; opacity: 0.7; }
+  .stake-btn.active .s-lbl { opacity: 0.8; }
+  .dur-row { display: flex; gap: 10px; width: 100%; max-width: 320px; }
+  .dur-btn { flex: 1; padding: 12px; border-radius: 10px; text-align: center; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.1); color: white; cursor: pointer; font-weight: 600; }
+  .dur-btn.active { background: #4ecdc4; border-color: #4ecdc4; color: #1a1a2e; }
+  .play-btn { width: 100%; max-width: 320px; padding: 18px; border-radius: 16px; background: linear-gradient(90deg, #ff6b9d, #ff8c42); border: none; color: white; font-size: 18px; font-weight: 900; letter-spacing: 1px; cursor: pointer; margin-top: 20px; box-shadow: 0 8px 30px rgba(255,107,157,0.3); }
+  .play-btn:disabled { opacity: 0.4; }
+  .practice { color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 12px; cursor: pointer; }
+  #tokenShop { background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); padding: 20px; z-index: 200; }
+  .shop-header { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 320px; margin-bottom: 20px; }
+  .shop-title { font-size: 24px; font-weight: 900; color: white; }
+  .shop-close { font-size: 28px; color: white; background: none; border: none; cursor: pointer; }
+  .shop-balance { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .shop-balance .amt { font-size: 20px; font-weight: 800; color: #ffd700; }
+  .package-card { width: 100%; max-width: 320px; display: flex; align-items: center; justify-content: space-between; padding: 16px; margin-bottom: 12px; border-radius: 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; }
+  .package-card:active { transform: scale(0.98); }
+  .package-card.popular { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.05); }
+  .pkg-left { display: flex; align-items: center; gap: 12px; }
+  .pkg-icon { font-size: 28px; }
+  .pkg-info { display: flex; flex-direction: column; }
+  .pkg-amount { font-size: 20px; font-weight: 800; color: white; }
+  .pkg-bonus { font-size: 11px; font-weight: 700; color: #4ecdc4; }
+  .pkg-popular-tag { font-size: 10px; font-weight: 700; color: #ffd700; background: rgba(255,215,0,0.2); padding: 2px 8px; border-radius: 4px; margin-top: 2px; }
+  .pkg-price { padding: 8px 16px; border-radius: 12px; background: rgba(255,255,255,0.1); color: white; font-size: 16px; font-weight: 800; }
+  .pkg-price.processing { background: #4ecdc4; }
+  .restore-btn { margin-top: 16px; padding: 12px 24px; border-radius: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #888; font-size: 13px; cursor: pointer; }
+  .shop-note { margin-top: 20px; text-align: center; color: #666; font-size: 11px; line-height: 1.5; }
+  #results { background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%); padding: 20px; }
+  .res-emoji { font-size: 60px; margin-bottom: 8px; }
+  .res-title { font-size: 28px; font-weight: 900; color: white; margin-bottom: 20px; }
+  .res-list { width: 100%; max-width: 320px; background: rgba(255,255,255,0.05); border-radius: 20px; padding: 16px; }
+  .res-row { display: flex; align-items: center; padding: 12px; border-radius: 12px; margin-bottom: 8px; }
+  .res-row.winner { background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.3); }
+  .res-row.player { background: rgba(255,107,157,0.1); border: 1px solid rgba(255,107,157,0.3); }
+  .res-rank { font-size: 24px; margin-right: 12px; }
+  .res-info { flex: 1; }
+  .res-name { font-size: 16px; font-weight: 700; color: white; }
+  .res-you { font-size: 10px; font-weight: 700; color: #ffd700; background: rgba(255,215,0,0.2); padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+  .res-score { font-size: 20px; font-weight: 800; color: white; }
+  .prize-banner { margin: 20px 0; text-align: center; }
+  .prize-txt { font-size: 22px; font-weight: 800; color: #ffd700; }
+  .prize-sub { font-size: 13px; color: #888; margin-top: 4px; }
+  .res-actions { display: flex; gap: 12px; width: 100%; max-width: 320px; margin-top: auto; }
+  .btn-sec { flex: 1; padding: 16px; border-radius: 12px; background: rgba(255,255,255,0.1); border: none; color: white; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .btn-prim { flex: 1; padding: 16px; border-radius: 12px; background: linear-gradient(90deg, #ff6b9d, #ff8c42); border: none; color: white; font-size: 16px; font-weight: 800; cursor: pointer; }
+  #hud { position: absolute; top: env(safe-area-inset-top); left: 0; right: 0; pointer-events: none; display: none; }
+  .hud-pill { position: absolute; top: 12px; padding: 8px 16px; border-radius: 20px; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); font-weight: 700; color: white; font-size: 16px; }
+  .hud-score { left: 16px; }
+  .hud-timer { right: 16px; color: #ffd700; font-size: 20px; }
+  .hud-urgent { color: #ff4444 !important; animation: pulse 0.5s infinite; }
+  #headbuttBtn { position: absolute; bottom: calc(env(safe-area-inset-bottom) + 24px); left: 24px; width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #ff4444, #cc0000); border: 3px solid rgba(255,255,255,0.3); color: white; font-size: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; box-shadow: 0 6px 20px rgba(255,68,68,0.4), inset 0 2px 4px rgba(255,255,255,0.2); transition: transform 0.1s, opacity 0.2s; z-index: 50; }
+  #headbuttBtn:active { transform: scale(0.92); }
+  #headbuttBtn:disabled { opacity: 0.4; transform: none; cursor: not-allowed; }
+  #headbuttBtn .btn-icon { font-size: 32px; }
+  #headbuttBtn .cooldown-ring { position: absolute; top: -4px; left: -4px; width: 80px; height: 80px; border-radius: 50%; border: 4px solid transparent; border-top-color: #ffd700; animation: spin 1s linear infinite; display: none; }
+  #headbuttBtn.on-cooldown .cooldown-ring { display: block; }
+  #toast { position: absolute; top: calc(env(safe-area-inset-top) + 60px); left: 50%; transform: translateX(-50%) translateY(-20px); padding: 12px 24px; border-radius: 12px; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); color: white; font-size: 14px; font-weight: 600; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 300; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.error { background: rgba(255,68,68,0.9); }
+  #toast.success { background: rgba(78,205,196,0.9); }
+  #countdown { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); z-index: 100; font-size: 100px; font-weight: 900; color: white; }
+  @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+  @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.1);} }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<a id="buy-source" href="https://buy.stripe.com/fZu4gscmOafgeEk3TQco004" style="position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:9999;background:#111;color:#fff;font:600 12px -apple-system,sans-serif;padding:8px 14px;border-radius:999px;text-decoration:none;border:1px solid #ffd700;max-width:92vw;text-align:center;">Practice is free. Source kit $12. Not in the App Store. Tokens do not cash out.</a>
+
+<canvas id="gameCanvas"></canvas>
+<div id="ui">
+  <div id="toast"></div>
+  <div class="screen" id="lobby">
+    <div class="lobby-emoji">🦛</div>
+    <div class="lobby-title">HIPPO ROYALE</div>
+    <div class="lobby-sub">Chomp your way to victory!</div>
+    <div class="balance-pill">
+      <span>💎</span>
+      <span class="amt" id="tokenDisplay">100</span>
+      <button onclick="openShop()" style="background:none;border:none;font-size:20px;cursor:pointer;margin-left:4px;">➕</button>
+    </div>
+    <div class="section-label">Select Stakes</div>
+    <div class="stakes-grid">
+      <div class="stake-btn active" data-fee="0" onclick="selectStake(this)"><div class="s-amt">FREE</div><div class="s-lbl">Practice</div></div>
+      <div class="stake-btn" data-fee="10" onclick="selectStake(this)"><div class="s-amt">10</div><div class="s-lbl">Tokens</div></div>
+      <div class="stake-btn" data-fee="50" onclick="selectStake(this)"><div class="s-amt">50</div><div class="s-lbl">Tokens</div></div>
+      <div class="stake-btn" data-fee="100" onclick="selectStake(this)"><div class="s-amt">100</div><div class="s-lbl">Tokens</div></div>
+    </div>
+    <div class="section-label">Match Duration</div>
+    <div class="dur-row">
+      <div class="dur-btn active" data-dur="60" onclick="selectDur(this)">60s</div>
+      <div class="dur-btn" data-dur="90" onclick="selectDur(this)">90s</div>
+      <div class="dur-btn" data-dur="120" onclick="selectDur(this)">120s</div>
+    </div>
+    <button class="play-btn" id="playBtn" onclick="startGame()">ENTER ARENA</button>
+    <div class="practice" onclick="selectFree()">Practice Mode (Free)</div>
+  </div>
+  <div class="screen hidden" id="tokenShop">
+    <div class="shop-header"><div class="shop-title">💎 TOKEN SHOP</div><button class="shop-close" onclick="closeShop()">✕</button></div>
+    <div class="shop-balance"><span>💎</span><span class="amt" id="shopTokenDisplay">100</span></div>
+    <div class="package-card" id="pkg100" onclick="buyTokens('tokens_100', 100, '$0.99')"><div class="pkg-left"><span class="pkg-icon">💎</span><div class="pkg-info"><span class="pkg-amount">100 Tokens</span></div></div><span class="pkg-price" id="price100">$0.99</span></div>
+    <div class="package-card popular" id="pkg550" onclick="buyTokens('tokens_550', 550, '$4.99')"><div class="pkg-left"><span class="pkg-icon">💎💎</span><div class="pkg-info"><span class="pkg-amount">550 Tokens</span><span class="pkg-bonus">+10% BONUS</span><span class="pkg-popular-tag">MOST POPULAR</span></div></div><span class="pkg-price" id="price550">$4.99</span></div>
+    <div class="package-card" id="pkg1200" onclick="buyTokens('tokens_1200', 1200, '$9.99')"><div class="pkg-left"><span class="pkg-icon">💎💎💎</span><div class="pkg-info"><span class="pkg-amount">1,200 Tokens</span><span class="pkg-bonus">+20% BONUS</span></div></div><span class="pkg-price" id="price1200">$9.99</span></div>
+    <div class="package-card" id="pkg3000" onclick="buyTokens('tokens_3000', 3000, '$19.99')"><div class="pkg-left"><span class="pkg-icon">👑</span><div class="pkg-info"><span class="pkg-amount">3,000 Tokens</span><span class="pkg-bonus">+50% BONUS</span></div></div><span class="pkg-price" id="price3000">$19.99</span></div>
+    <button class="restore-btn" onclick="restorePurchases()">🔄 Restore Purchases</button>
+    <div class="shop-note">Purchases are processed securely by Apple.<br>Tokens are delivered instantly after confirmation.<br>Tap "Restore" if tokens do not appear.</div>
+  </div>
+  <div id="hud"><div class="hud-pill hud-score" id="hudScore">💰 $0</div><div class="hud-pill hud-timer" id="hudTimer">60</div></div>
+  <button id="headbuttBtn" style="display:none;" onclick="doHeadbutt()"><span class="cooldown-ring"></span><span class="btn-icon">💥</span></button>
+  <div id="countdown">3</div>
+  <div class="screen hidden" id="results">
+    <div class="res-emoji">🏆</div>
+    <div class="res-title">MATCH OVER</div>
+    <div class="res-list" id="resList"></div>
+    <div class="prize-banner" id="prizeBanner"></div>
+    <div class="res-actions"><button class="btn-sec" onclick="goLobby()">LOBBY</button><button class="btn-prim" onclick="rematch()">REMATCH</button></div>
+  </div>
+</div>
+<script src="capacitor.js"></script>
+<script>
+
+// ==================== CAPACITOR NATIVE BRIDGE ====================
+let CapacitorPlugins = {};
+let isNative = false;
+let InAppPurchase = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (window.Capacitor) {
+    isNative = Capacitor.isNativePlatform();
+    if (isNative) {
+      try {
+        const { StatusBar } = await import('@capacitor/status-bar');
+        const { Haptics } = await import('@capacitor/haptics');
+        const { SplashScreen } = await import('@capacitor/splash-screen');
+        const { App } = await import('@capacitor/app');
+        const { Preferences } = await import('@capacitor/preferences');
+        CapacitorPlugins.StatusBar = StatusBar;
+        CapacitorPlugins.Haptics = Haptics;
+        CapacitorPlugins.Preferences = Preferences;
+        StatusBar.setStyle({ style: 'DARK' });
+        StatusBar.setBackgroundColor({ color: '#1a1a2e' });
+        setTimeout(() => SplashScreen.hide(), 2000);
+        App.addListener('backButton', () => {
+          if (gameState === 'playing') return;
+          if (document.getElementById('tokenShop').classList.contains('hidden') === false) { closeShop(); return; }
+          if (gameState === 'results') goLobby();
+        });
+        const { value } = await Preferences.get({ key: 'tokens' });
+        if (value !== null) { tokens = parseInt(value); updateTokens(); }
+        await initIAP();
+      } catch(e) { console.log('Native init error:', e); }
+    }
+  }
+});
+
+async function nativeHaptic(type) {
+  if (!isNative || !CapacitorPlugins.Haptics) return;
+  try {
+    if (type === 'heavy') await CapacitorPlugins.Haptics.impact({ style: 'Heavy' });
+    else if (type === 'medium') await CapacitorPlugins.Haptics.impact({ style: 'Medium' });
+    else await CapacitorPlugins.Haptics.impact({ style: 'Light' });
+  } catch(e) {}
+}
+
+async function saveTokensNative() {
+  if (isNative && CapacitorPlugins.Preferences) {
+    await CapacitorPlugins.Preferences.set({ key: 'tokens', value: String(tokens) });
+  }
+}
+
+// ==================== IN-APP PURCHASE ====================
+const PRODUCT_IDS = ['tokens_100', 'tokens_550', 'tokens_1200', 'tokens_3000'];
+const TOKEN_AMOUNTS = { 'tokens_100': 100, 'tokens_550': 550, 'tokens_1200': 1200, 'tokens_3000': 3000 };
+let iapProducts = {};
+let isPurchasing = false;
+
+async function initIAP() {
+  if (!isNative) return;
+  try {
+    const module = await import('@capacitor-community/in-app-purchase');
+    InAppPurchase = module.InAppPurchase;
+    await InAppPurchase.register({ products: PRODUCT_IDS.map(id => ({ id, type: 'inapp' })) });
+    const result = await InAppPurchase.getProducts({ productIds: PRODUCT_IDS });
+    if (result.products) {
+      for (let p of result.products) {
+        iapProducts[p.id] = p;
+        const el = document.getElementById('price' + p.id.replace('tokens_', ''));
+        if (el) el.textContent = p.price;
+      }
+    }
+    InAppPurchase.addListener('onPurchase', async (purchase) => {
+      if (purchase.state === 'purchased' || purchase.state === 'restored') {
+        const productId = purchase.productId;
+        const amount = TOKEN_AMOUNTS[productId] || 0;
+        if (amount > 0) {
+          tokens += amount;
+          updateTokens();
+          showToast('+' + amount + ' Tokens Added!', 'success');
+          nativeHaptic('heavy');
+        }
+        try { await InAppPurchase.finishTransaction({ transactionId: purchase.transactionId }); } catch(e) {}
+      }
+      isPurchasing = false;
+      resetShopButtons();
+    });
+    InAppPurchase.addListener('onError', (error) => {
+      console.error('IAP Error:', error);
+      showToast(error.message || 'Purchase failed', 'error');
+      isPurchasing = false;
+      resetShopButtons();
+    });
+  } catch(e) { console.log('IAP not available:', e); }
+}
+
+async function buyTokens(productId, amount, fallbackPrice) {
+  if (!isNative) { showToast('IAP only works in the native app', 'error'); return; }
+  if (isPurchasing) return;
+  if (!InAppPurchase) { showToast('Store not ready. Try again.', 'error'); return; }
+  isPurchasing = true;
+  const priceEl = document.getElementById('price' + productId.replace('tokens_', ''));
+  if (priceEl) { priceEl.textContent = '...'; priceEl.classList.add('processing'); }
+  try {
+    await InAppPurchase.buyProduct({ productId });
+  } catch(e) {
+    showToast(e.message || 'Purchase cancelled', 'error');
+    isPurchasing = false;
+    resetShopButtons();
+  }
+}
+
+async function restorePurchases() {
+  if (!isNative || !InAppPurchase) { showToast('IAP only works in the native app', 'error'); return; }
+  showToast('Restoring purchases...', 'success');
+  try { await InAppPurchase.restorePurchases(); showToast('Purchases restored!', 'success'); }
+  catch(e) { showToast('Nothing to restore', 'error'); }
+}
+
+function resetShopButtons() {
+  for (let id of PRODUCT_IDS) {
+    const suffix = id.replace('tokens_', '');
+    const el = document.getElementById('price' + suffix);
+    if (el) {
+      el.classList.remove('processing');
+      const product = iapProducts[id];
+      el.textContent = product ? product.price : (suffix === '100' ? '$0.99' : suffix === '550' ? '$4.99' : suffix === '1200' ? '$9.99' : '$19.99');
+    }
+  }
+}
+
+function openShop() { document.getElementById('tokenShop').classList.remove('hidden'); document.getElementById('shopTokenDisplay').textContent = tokens; nativeHaptic('light'); }
+function closeShop() { document.getElementById('tokenShop').classList.add('hidden'); }
+function showToast(message, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'show ' + type;
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ==================== GAME ENGINE ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W, H, CX, CY;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; CX = W/2; CY = H/2; }
+window.addEventListener('resize', resize);
+resize();
+
+let gameState = 'lobby';
+let tokens = 100;
+let entryFee = 0;
+let matchDuration = 60;
+let timeLeft = 60;
+let gameScore = 0;
+let lastTime = 0;
+let spawnTimer = 0;
+let gameTimer = null;
+let animFrame = null;
+const ARENA_W = 320;
+const ARENA_H = 480;
+let arenaX, arenaY;
+let player = null;
+let opponents = [];
+let marbles = [];
+let particles = [];
+let popups = [];
+let shockwaves = [];
+let touchX = null, touchY = null;
+let isTouching = false;
+const COLORS = {
+  pink: '#FF6B9D', green: '#4ECDC4', yellow: '#FFE66D', orange: '#FF8C42',
+  arena: '#1a5c45', arenaBorder: '#8B4513', arenaDark: '#0d3b2e',
+  white: '#ffffff', gold: '#FFD700', rare: '#9B59B6', mega: '#FF4444'
+};
+
+class Hippo {
+  constructor(x, y, color, isPlayer, name) {
+    this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+    this.radius = 28; this.color = color; this.isPlayer = isPlayer; this.name = name;
+    this.score = 0; this.angle = -Math.PI/2; this.chompScale = 1; this.chompTimer = 0;
+    this.speed = isPlayer ? 280 : 180 + Math.random()*80;
+    this.targetX = x; this.targetY = y; this.aiTimer = 0;
+    this.wanderX = x; this.wanderY = y;
+    this.isCharging = false; this.chargeTimer = 0; this.stunTimer = 0;
+    this.chargeCooldown = 0; this.chargeTrail = [];
+  }
+  update(dt) {
+    if (this.stunTimer > 0) { this.stunTimer -= dt; this.vx *= 0.5; this.vy *= 0.5; this.x += this.vx * dt; this.y += this.vy * dt; return; }
+    if (this.isCharging) {
+      this.chargeTimer -= dt;
+      this.chargeTrail.push({x: this.x, y: this.y, life: 0.3});
+      if (this.chargeTrail.length > 8) this.chargeTrail.shift();
+      if (this.chargeTimer <= 0) { this.isCharging = false; this.chargeCooldown = 2.5; }
+    } else if (this.chargeCooldown > 0) { this.chargeCooldown -= dt; }
+    if (this.chompTimer > 0) { this.chompTimer -= dt; this.chompScale = 1 + Math.sin((1 - this.chompTimer/0.15) * Math.PI) * 0.3; }
+    else { this.chompScale = 1; }
+    if (this.isPlayer) {
+      if (this.isCharging) { const cs = 600; this.vx = Math.cos(this.angle - Math.PI/2) * cs; this.vy = Math.sin(this.angle - Math.PI/2) * cs; }
+      else if (isTouching && touchX !== null) { const ax = touchX - arenaX, ay = touchY - arenaY, dx = ax - this.x, dy = ay - this.y, dist = Math.sqrt(dx*dx + dy*dy); if (dist > 5) { this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed; this.angle = Math.atan2(dy, dx) + Math.PI/2; } else { this.vx *= 0.8; this.vy *= 0.8; } }
+      else { this.vx *= 0.85; this.vy *= 0.85; }
+    } else {
+      this.aiTimer -= dt;
+      if (this.aiTimer <= 0) {
+        this.aiTimer = 0.3 + Math.random() * 0.5;
+        let nearest = null, nearDist = Infinity;
+        for (let m of marbles) { const d = Math.hypot(m.x - this.x, m.y - this.y); if (d < nearDist) { nearDist = d; nearest = m; } }
+        if (nearest && nearDist < 250) { this.targetX = nearest.x; this.targetY = nearest.y; }
+        else { this.wanderX = (Math.random() - 0.5) * (ARENA_W - 80); this.wanderY = (Math.random() - 0.5) * (ARENA_H - 80); this.targetX = this.wanderX; this.targetY = this.wanderY; }
+        if (Math.random() < 0.4) this.chomp();
+      }
+      const dx = this.targetX - this.x, dy = this.targetY - this.y, dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 5) { this.vx = (dx/dist) * this.speed; this.vy = (dy/dist) * this.speed; this.angle = Math.atan2(dy, dx) + Math.PI/2; }
+    }
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    const margin = this.radius + 5;
+    this.x = Math.max(-ARENA_W/2 + margin, Math.min(ARENA_W/2 - margin, this.x));
+    this.y = Math.max(-ARENA_H/2 + margin, Math.min(ARENA_H/2 - margin, this.y));
+    for (let t of this.chargeTrail) t.life -= dt;
+    this.chargeTrail = this.chargeTrail.filter(t => t.life > 0);
+  }
+  startCharge() { if (this.chargeCooldown > 0 || this.stunTimer > 0) return false; this.isCharging = true; this.chargeTimer = 0.4; this.chompScale = 1.2; return true; }
+  stun() { this.stunTimer = 1.0; this.isCharging = false; this.chargeTimer = 0; this.vx = (Math.random() - 0.5) * 150; this.vy = (Math.random() - 0.5) * 150; }
+  chomp() { this.chompTimer = 0.15; }
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(arenaX + this.x, arenaY + this.y);
+    if (this.chargeTrail.length > 1) {
+      ctx.strokeStyle = this.color; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.beginPath();
+      for (let i = 0; i < this.chargeTrail.length; i++) { const t = this.chargeTrail[i]; ctx.globalAlpha = (t.life / 0.3) * 0.5; if (i === 0) ctx.moveTo(t.x - this.x, t.y - this.y); else ctx.lineTo(t.x - this.x, t.y - this.y); }
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    ctx.rotate(this.angle); ctx.scale(this.chompScale, this.chompScale);
+    if (this.stunTimer > 0) { ctx.translate((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4); }
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(4, 8, this.radius, this.radius*0.7, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = this.color; ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(0, 5, this.radius*0.9, this.radius*0.6, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -8, this.radius*0.75, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-10, -18, 7, 0, Math.PI*2); ctx.arc(10, -18, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-10, -18, 3, 0, Math.PI*2); ctx.arc(10, -18, 3, 0, Math.PI*2); ctx.fill();
+    if (this.isCharging) { ctx.fillStyle = '#ff4444'; ctx.beginPath(); ctx.arc(0, -2, this.radius*0.55, 0, Math.PI, false); ctx.fill(); ctx.stroke(); }
+    else { ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, -2, this.radius*0.5, 0, Math.PI, false); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+    if (this.stunTimer > 0) { ctx.save(); ctx.translate(arenaX + this.x, arenaY + this.y - this.radius - 20); ctx.globalAlpha = Math.min(1, this.stunTimer); ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('💫', 0, 0); ctx.fillText('✨', -15, -8); ctx.fillText('⭐', 15, -5); ctx.globalAlpha = 1; ctx.restore(); }
+    if (this.isCharging) { ctx.save(); ctx.translate(arenaX + this.x, arenaY + this.y); ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 3; ctx.globalAlpha = 0.6 + Math.sin(Date.now() / 50) * 0.3; ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; ctx.restore(); }
+    if (!this.isPlayer) { ctx.save(); ctx.translate(arenaX + this.x, arenaY + this.y); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; const tw = ctx.measureText(this.name).width; ctx.beginPath(); ctx.roundRect(-tw/2 - 4, -this.radius - 22, tw + 8, 16, 4); ctx.fill(); ctx.fillStyle = '#fff'; ctx.fillText(this.name, 0, -this.radius - 11); ctx.restore(); }
+  }
+}
+
+class Marble {
+  constructor() {
+    const roll = Math.random();
+    if (roll < 0.02) { this.type = 'mega'; this.value = 25; this.radius = 20; this.color = COLORS.mega; }
+    else if (roll < 0.10) { this.type = 'rare'; this.value = 10; this.radius = 16; this.color = COLORS.rare; }
+    else if (roll < 0.30) { this.type = 'gold'; this.value = 5; this.radius = 13; this.color = COLORS.gold; }
+    else { this.type = 'regular'; this.value = 1; this.radius = 11; this.color = COLORS.white; }
+    const margin = 40;
+    this.x = (Math.random() - 0.5) * (ARENA_W - margin*2);
+    this.y = (Math.random() - 0.5) * (ARENA_H - margin*2);
+    this.vx = (Math.random() - 0.5) * 60;
+    this.vy = (Math.random() - 0.5) * 60;
+    this.pulse = Math.random() * Math.PI * 2;
+    this.scale = 0;
+    this.spawnIn = true;
+  }
+  update(dt) {
+    if (this.spawnIn) { this.scale += dt * 4; if (this.scale >= 1) { this.scale = 1; this.spawnIn = false; } }
+    this.x += this.vx * dt; this.y += this.vy * dt; this.pulse += dt * 3;
+    const margin = this.radius + 5;
+    if (this.x < -ARENA_W/2 + margin || this.x > ARENA_W/2 - margin) this.vx *= -1;
+    if (this.y < -ARENA_H/2 + margin || this.y > ARENA_H/2 - margin) this.vy *= -1;
+    this.x = Math.max(-ARENA_W/2 + margin, Math.min(ARENA_W/2 - margin, this.x));
+    this.y = Math.max(-ARENA_H/2 + margin, Math.min(ARENA_H/2 - margin, this.y));
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(arenaX + this.x, arenaY + this.y);
+    ctx.scale(this.scale, this.scale);
+    if (this.type === 'rare' || this.type === 'mega') { const glow = 4 + Math.sin(this.pulse) * 3; ctx.shadowColor = this.color; ctx.shadowBlur = glow; }
+    ctx.fillStyle = this.color; ctx.strokeStyle = this.type === 'regular' ? '#333' : '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(-this.radius*0.3, -this.radius*0.3, this.radius*0.25, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = (this.type === 'regular' || this.type === 'gold') ? '#000' : '#fff';
+    ctx.font = 'bold ' + (this.radius * 0.9) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('$' + this.value, 0, 1);
+    ctx.restore();
+  }
+}
+
+class Particle {
+  constructor(x, y, color) { this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * 200; this.vy = (Math.random() - 0.5) * 200; this.life = 0.4; this.maxLife = 0.4; this.color = color; this.size = 3 + Math.random() * 4; }
+  update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.life -= dt; this.vx *= 0.95; this.vy *= 0.95; }
+  draw(ctx) { const alpha = this.life / this.maxLife; ctx.globalAlpha = alpha; ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
+}
+
+class Popup {
+  constructor(x, y, text, color) { this.x = x; this.y = y; this.text = text; this.color = color; this.life = 0.8; this.maxLife = 0.8; this.vy = -80; }
+  update(dt) { this.y += this.vy * dt; this.life -= dt; }
+  draw(ctx) { const alpha = this.life / this.maxLife; ctx.globalAlpha = alpha; ctx.fillStyle = this.color; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeText(this.text, this.x, this.y); ctx.fillText(this.text, this.x, this.y); ctx.globalAlpha = 1; }
+}
+
+class Shockwave {
+  constructor(x, y) { this.x = x; this.y = y; this.radius = 10; this.maxRadius = 60; this.life = 0.4; this.maxLife = 0.4; }
+  update(dt) { this.life -= dt; this.radius += dt * 150; }
+  draw(ctx) { const alpha = this.life / this.maxLife; ctx.globalAlpha = alpha; ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
+}
+
+function initGame() {
+  arenaX = CX; arenaY = CY;
+  player = new Hippo(0, ARENA_H/3, COLORS.pink, true, 'You');
+  opponents = [new Hippo(0, -ARENA_H/3, COLORS.green, false, 'Chomper'), new Hippo(-ARENA_W/3, 0, COLORS.yellow, false, 'Hungry'), new Hippo(ARENA_W/3, 0, COLORS.orange, false, 'Muncher')];
+  marbles = []; particles = []; popups = []; shockwaves = [];
+  gameScore = 0; timeLeft = matchDuration; spawnTimer = 0;
+  for (let i = 0; i < 8; i++) marbles.push(new Marble());
+}
+function spawnMarble() { if (marbles.length < 25) marbles.push(new Marble()); }
+
+function checkCollisions() {
+  const allHippos = [player, ...opponents];
+  if (player.isCharging) {
+    for (let opp of opponents) {
+      const dx = opp.x - player.x, dy = opp.y - player.y, dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < player.radius + opp.radius + 5) {
+        opp.stun();
+        shockwaves.push(new Shockwave(arenaX + opp.x, arenaY + opp.y));
+        for (let p = 0; p < 20; p++) particles.push(new Particle(arenaX + opp.x, arenaY + opp.y, '#ff4444'));
+        popups.push(new Popup(arenaX + opp.x, arenaY + opp.y - 30, 'STUN!', '#ff4444'));
+        nativeHaptic('heavy');
+        screenShake = 0.15;
+      }
+    }
+  }
+  for (let h of allHippos) {
+    if (h.stunTimer > 0) continue;
+    for (let i = marbles.length - 1; i >= 0; i--) {
+      const m = marbles[i];
+      const dx = (arenaX + m.x) - (arenaX + h.x), dy = (arenaY + m.y) - (arenaY + h.y), dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < h.radius + m.radius + 5) {
+        h.score += m.value;
+        for (let p = 0; p < 12; p++) particles.push(new Particle(arenaX + m.x, arenaY + m.y, m.color));
+        popups.push(new Popup(arenaX + m.x, arenaY + m.y, '+' + m.value, m.type === 'mega' ? '#FFD700' : '#fff'));
+        if (h.isPlayer) { gameScore = h.score; document.getElementById('hudScore').textContent = '💰 $' + gameScore; nativeHaptic(m.type === 'mega' ? 'heavy' : (m.type === 'rare' ? 'medium' : 'light')); }
+        marbles.splice(i, 1);
+      }
+    }
+  }
+}
+
+let screenShake = 0;
+function update(dt) {
+  if (gameState !== 'playing') return;
+  player.update(dt); opponents.forEach(o => o.update(dt)); marbles.forEach(m => m.update(dt));
+  particles.forEach((p, i) => { p.update(dt); if (p.life <= 0) particles.splice(i, 1); });
+  popups.forEach((p, i) => { p.update(dt); if (p.life <= 0) popups.splice(i, 1); });
+  shockwaves.forEach((s, i) => { s.update(dt); if (s.life <= 0) shockwaves.splice(i, 1); });
+  if (screenShake > 0) screenShake -= dt;
+  spawnTimer += dt;
+  if (spawnTimer > 0.7) { spawnTimer = 0; spawnMarble(); }
+  checkCollisions();
+  updateHeadbuttButton();
+}
+
+function draw() {
+  ctx.save();
+  if (screenShake > 0) { ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8); }
+  ctx.fillStyle = COLORS.arenaDark; ctx.fillRect(0, 0, W, H);
+  if (gameState === 'lobby') { ctx.restore(); return; }
+  ctx.save(); ctx.translate(arenaX, arenaY);
+  ctx.fillStyle = COLORS.arena; ctx.beginPath(); ctx.roundRect(-ARENA_W/2, -ARENA_H/2, ARENA_W, ARENA_H, 16); ctx.fill();
+  ctx.strokeStyle = COLORS.arenaBorder; ctx.lineWidth = 6; ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 20; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  for (let i = 0; i < 15; i++) { const dx = ((i * 137.5) % (ARENA_W - 40)) - (ARENA_W/2 - 20); const dy = ((i * 89.7) % (ARENA_H - 40)) - (ARENA_H/2 - 20); ctx.beginPath(); ctx.arc(dx, dy, 3, 0, Math.PI*2); ctx.fill(); }
+  ctx.restore();
+  marbles.forEach(m => m.draw(ctx)); opponents.forEach(o => o.draw(ctx)); player.draw(ctx);
+  shockwaves.forEach(s => s.draw(ctx)); particles.forEach(p => p.draw(ctx)); popups.forEach(p => p.draw(ctx));
+  ctx.restore();
+}
+
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+  update(dt);
+  draw();
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+function doHeadbutt() { if (gameState !== 'playing' || !player) return; if (player.startCharge()) nativeHaptic('heavy'); }
+function updateHeadbuttButton() {
+  const btn = document.getElementById('headbuttBtn');
+  if (!player) return;
+  if (player.chargeCooldown > 0 || player.stunTimer > 0) { btn.disabled = true; btn.classList.add('on-cooldown'); }
+  else { btn.disabled = false; btn.classList.remove('on-cooldown'); }
+}
+
+function updateTokens() { document.getElementById('tokenDisplay').textContent = tokens; document.getElementById('shopTokenDisplay').textContent = tokens; saveTokensNative(); }
+function selectStake(el) { document.querySelectorAll('.stake-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); entryFee = parseInt(el.dataset.fee); const btn = document.getElementById('playBtn'); if (entryFee === 0) { btn.textContent = 'PRACTICE'; btn.disabled = false; } else if (tokens >= entryFee) { btn.textContent = 'ENTER ARENA'; btn.disabled = false; } else { btn.textContent = 'NOT ENOUGH'; btn.disabled = true; } }
+function selectDur(el) { document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); matchDuration = parseInt(el.dataset.dur); }
+function selectFree() { document.querySelectorAll('.stake-btn').forEach(b => b.classList.remove('active')); document.querySelector('.stake-btn[data-fee="0"]').classList.add('active'); entryFee = 0; document.getElementById('playBtn').textContent = 'PRACTICE'; document.getElementById('playBtn').disabled = false; }
+
+function startGame() {
+  if (entryFee > 0 && tokens < entryFee) return;
+  if (entryFee > 0) { tokens -= entryFee; updateTokens(); }
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('headbuttBtn').style.display = 'flex';
+  initGame(); gameState = 'countdown';
+  const cd = document.getElementById('countdown'); cd.style.display = 'flex'; let count = 3; cd.textContent = count;
+  const cdInterval = setInterval(() => {
+    count--;
+    if (count > 0) { cd.textContent = count; nativeHaptic('medium'); }
+    else { cd.textContent = 'CHOMP!'; cd.style.color = '#ff6b9d'; nativeHaptic('heavy'); setTimeout(() => { cd.style.display = 'none'; cd.style.color = 'white'; gameState = 'playing'; startTimer(); }, 600); clearInterval(cdInterval); }
+  }, 800);
+  lastTime = performance.now(); animFrame = requestAnimationFrame(gameLoop);
+}
+
+function startTimer() {
+  document.getElementById('hudTimer').textContent = timeLeft;
+  const timerEl = document.getElementById('hudTimer');
+  gameTimer = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = timeLeft;
+    if (timeLeft <= 10) { timerEl.classList.add('hud-urgent'); nativeHaptic('light'); }
+    if (timeLeft <= 0) { clearInterval(gameTimer); nativeHaptic('heavy'); endGame(); }
+  }, 1000);
+}
+
+function endGame() {
+  gameState = 'results';
+  cancelAnimationFrame(animFrame);
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('headbuttBtn').style.display = 'none';
+  const all = [{...player, rank: 0}, ...opponents.map(o => ({...o}))];
+  all.sort((a, b) => b.score - a.score); all.forEach((h, i) => h.rank = i + 1);
+  const ranks = ['🥇','🥈','🥉','4']; let html = '';
+  all.forEach(h => { const isPlayer = h.isPlayer; const cls = h.rank === 1 ? 'winner' : (isPlayer ? 'player' : ''); html += '<div class="res-row ' + cls + '"><span class="res-rank">' + ranks[h.rank-1] + '</span><div class="res-info"><div class="res-name">' + h.name + '</div>' + (isPlayer ? '<span class="res-you">YOU</span>' : '') + '</div><span class="res-score">$' + h.score + '</span></div>'; });
+  document.getElementById('resList').innerHTML = html;
+  const playerRank = all.find(h => h.isPlayer).rank;
+  const pool = entryFee * 4; let prizeHtml = '';
+  if (entryFee === 0) { prizeHtml = '<div class="prize-txt">Practice Complete!</div>'; }
+  else if (playerRank === 1) { const prize = Math.floor(pool * 0.7); tokens += prize; updateTokens(); prizeHtml = '<div class="prize-txt">🎉 YOU WON! +' + prize + ' Tokens</div><div class="prize-sub">Prize Pool: ' + pool + ' tokens</div>'; }
+  else if (playerRank === 2) { const prize = Math.floor(pool * 0.2); tokens += prize; updateTokens(); prizeHtml = '<div class="prize-txt">🥈 2nd Place — +' + prize + ' Tokens</div>'; }
+  else { prizeHtml = '<div class="prize-txt" style="color:#888;">Better luck next time!</div>'; }
+  document.getElementById('prizeBanner').innerHTML = prizeHtml;
+  document.getElementById('results').classList.remove('hidden');
+}
+
+function goLobby() { document.getElementById('results').classList.add('hidden'); document.getElementById('lobby').classList.remove('hidden'); document.getElementById('hudTimer').classList.remove('hud-urgent'); gameState = 'lobby'; }
+function rematch() { document.getElementById('results').classList.add('hidden'); startGame(); }
+
+canvas.addEventListener('touchstart', e => { e.preventDefault(); isTouching = true; touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; if (gameState === 'playing' && player) player.chomp(); }, {passive: false});
+canvas.addEventListener('touchmove', e => { e.preventDefault(); touchX = e.touches[0].clientX; touchY = e.touches[0].clientY; }, {passive: false});
+canvas.addEventListener('touchend', e => { e.preventDefault(); isTouching = false; }, {passive: false});
+canvas.addEventListener('mousedown', e => { isTouching = true; touchX = e.clientX; touchY = e.clientY; if (gameState === 'playing' && player) player.chomp(); });
+canvas.addEventListener('mousemove', e => { if (isTouching) { touchX = e.clientX; touchY = e.clientY; } });
+canvas.addEventListener('mouseup', () => { isTouching = false; });
+window.addEventListener('touchmove', e => { if (e.target === canvas) e.preventDefault(); }, {passive: false});
+
+updateTokens();
+</script>
+</body>
+</html>
